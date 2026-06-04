@@ -185,8 +185,7 @@ export default function App() {
       const prompt = tab === "opportunities"
         ? `Search the web for ${aiQuery}. Relevant to healthcare AI startup for home care. Return ONLY JSON array with keys: name, org, country, category (Grant/Accelerator/Pitch Competition), deadline, open_date, funding_amount (number), funding_display, url, notes. 5-10 results.`
         : `Search the web for home health care agencies: ${aiQuery}. Return ONLY JSON array with keys: name, city, state, country, phone, email, website, size (SMB/Mid-Size/Enterprise), notes. 5-10 results.`;
-      const res = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 2000, system: sys, tools: [{ type: "web_search_20250305", name: "web_search" }], messages: [{ role: "user", content: prompt }] }) });
-      const data = await res.json();
+      const res = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, system: sys }) });
       let allText = ""; for (const b of (data.content || [])) { if (b.type === "text") allText += b.text + "\n"; if (b.type === "mcp_tool_result" && b.content) for (const s of b.content) if (s.text) allText += s.text + "\n"; }
       let clean = allText.replace(/```json|```/g, "").trim(); let parsed = null;
       try { parsed = JSON.parse(clean); } catch {}
