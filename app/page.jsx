@@ -170,11 +170,35 @@ export default function App() {
     setEditingId(null); setSaving(false);
   }
 
-  async function updateAgencyOutreach(id, val) {
-    setSaving(true);
-    setAgencies(prev => prev.map(a => a.id === id ? { ...a, outreach: val } : a));
-    await supaFetch("agencies", "PATCH", { outreach: val }, `?id=eq.${id}`);
-    setEditingId(null); setSaving(false);
+ async function aiSearch() {
+    if (!aiQuery.trim()) return;
+    setSearching(true); setAiResults(null);
+    try {
+      const sys = "You are a research assistant. After searching, respond with ONLY a valid JSON array. No markdown, no preamble.";
+      const prompt = tab === "opportunities"
+        ? `Search the web for ${aiQuery}. Relevant to healthcare AI startup for home care. Return ONLY JSON array with keys: name, org, country, category (Grant/Accelerator/Pitch Competition), deadline, open_date, funding_amount (number), funding_display, url, notes. 5-10 results.`
+        : `Search the web for home health care agencies: ${aiQuery}. Return ONLY JSON array with keys: name, city, state, country, phone, email, website, size (SMB/Mid-Size/Enterprise), notes. 5-10 results.`;
+      const res = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, system: sys }) });
+      const data = await res.json();
+      let allText = "";
+      for (const b of (data.content || [])) {
+        if (b.type === "text") allText += b.text + "\n";
+        if (b.type === "mcp_tool_result" && b.content) for (const s of b.content) if (s.text) allText += s.text + "\n";
+      }
+      let clean = allText.replace(/```json|```/g, "").trim();
+      let parsed = null;
+      try { parsed = JSON.parse(clean); } catch {}
+      if (!parsed) { const m = clean.match(/\[[\s\S]*\]/); if (m) try { parsed = JSON.parse(m[0]); } catch {} }
+      if (!parsed) {
+        const r2 = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: "Extract structured data. Return ONLY valid JSON array. Text: " + clean.substring(0, 2500), system: "Return ONLY a valid JSON array. No markdown." }) });
+        const d2 = await r2.json();
+        const t2 = (d2.content || []).filter(b => b.type === "text").map(b => b.text).join("").replace(/```json|```/g, "").trim();
+        const m2 = t2.match(/\[[\s\S]*\]/);
+        if (m2) try { parsed = JSON.parse(m2[0]); } catch {}
+      }
+      if (parsed && Array.isArray(parsed)) setAiResults(parsed); else setAiResults(null);
+    } catch (e) { console.error("Search error:", e); }
+    setSearching(false);
   }
 
   async function aiSearch() {
