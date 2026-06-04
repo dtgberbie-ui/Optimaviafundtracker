@@ -169,7 +169,14 @@ export default function App() {
     await supaFetch("opportunities", "PATCH", { app_status: val }, `?id=eq.${id}`);
     setEditingId(null); setSaving(false);
   }
-
+  
+async function updateAgencyOutreach(id, val) {
+    setSaving(true);
+    setAgencies(prev => prev.map(a => a.id === id ? { ...a, outreach: val } : a));
+    await supaFetch("agencies", "PATCH", { outreach: val }, `?id=eq.${id}`);
+    setEditingId(null); setSaving(false);
+  }
+  
  async function aiSearch() {
     if (!aiQuery.trim()) return;
     setSearching(true); setAiResults(null);
